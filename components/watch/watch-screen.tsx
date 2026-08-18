@@ -4,7 +4,7 @@ import '@vidstack/react/player/styles/default/theme.css';
 import '@vidstack/react/player/styles/default/layouts/video.css';
 import '@vidstack/react/player/styles/default/gestures.css';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Film, Heart, LoaderCircle, Play, Star, Tv, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,15 +13,22 @@ import { DefaultVideoLayout, defaultLayoutIcons } from '@vidstack/react/player/l
 import { Button } from '@/components/ui/button';
 import TopNav from '@/components/top-nav';
 import Kicker from '@/components/kicker';
+import CaptionOverlay from '@/components/watch/caption-overlay';
+import ProgressTracker from '@/components/watch/progress-tracker';
+import SubtitleDelayMenu from '@/components/watch/subtitle-delay-menu';
 import {
     addFavourite,
     fetchSeason,
     fetchSources,
     fetchStreamProviders,
+    fetchSubtitleTrack,
     removeFavourite,
     type StreamSourceDto,
 } from '@/lib/api/browser';
 import { getPreferredProvider, setPreferredProvider } from '@/lib/provider-preference';
+import type { ProgressRow } from '@/lib/progress/service';
+import { isFinished } from '@/lib/progress/shared';
+import { parseVtt, type VttCue } from '@/lib/vtt';
 import type { MediaItem, MediaType, SeasonInfo } from '@/lib/tmdb/types';
 import type { SessionUser } from '@/lib/session-user';
 import { cn } from '@/lib/utils';
@@ -33,6 +40,8 @@ interface WatchScreenProps {
     /** Fetched on the server so the header and pickers render immediately. */
     item: MediaItem | null;
     initialSeason: SeasonInfo | null;
+    /** Saved positions for this title, newest first. */
+    initialProgress: ProgressRow[];
     isFavourite: boolean;
     user: SessionUser;
     onSignOut: () => void;
@@ -71,6 +80,7 @@ export default function WatchScreen({
     tmdbId,
     item,
     initialSeason,
+    initialProgress,
     isFavourite: initialFavourite,
     user,
     onSignOut,
@@ -81,9 +91,28 @@ export default function WatchScreen({
     // The nav's search doesn't filter this page — Enter carries the query home.
     const [query, setQuery] = useState('');
 
+    // The newest unfinished row picks the season/episode and the seek target.
+    // A finished one is left alone: it would replay the credits.
+    const resumeRow = initialProgress.find((row) => !isFinished(row));
+
     const [providers, setProviders] = useState<string[]>([]);
-    const [season, setSeason] = useState(initialSeason?.seasonNumber ?? 1);
-    const [episode, setEpisode] = useState(1);
+    const [season, setSeason] = useState(resumeRow?.season ?? initialSeason?.seasonNumber ?? 1);
+    const [episode, setEpisode] = useState(resumeRow?.episode ?? 1);
+    /** Seek target for the player's next mount; null starts from zero. */
+    const [resumeTarget, setResumeTarget] = useState<number | null>(
+        resumeRow?.progressSeconds ?? null,
+    );
+    /** The coordinates the current sources were resolved for. The tracker renders
+     * only while the stream matches the picker, so a heartbeat can never credit
+     * the old stream's position to a newly picked episode.
+     * see: docs/decisions/watch-progress.md#resume-seam */
+    const [resolvedCoords, setResolvedCoords] = useState<{
+        season: number;
+        episode: number;
+    } | null>(null);
+    /** Live position, shared with the tracker: a provider switch remounts the
+     * player and continues from here. */
+    const lastPositionRef = useRef(0);
     const [provider, setProvider] = useState<string | null>(null);
     const [isFavourite, setIsFavourite] = useState(initialFavourite);
 
@@ -92,6 +121,12 @@ export default function WatchScreen({
 
     const [resolving, setResolving] = useState(false);
     const [sources, setSources] = useState<StreamSourceDto[] | null>(null);
+    /** Parsed caption cues for the current title/episode; empty means no captions. */
+    const [subtitleCues, setSubtitleCues] = useState<VttCue[]>([]);
+    /** Manual sync shift in half-second ticks: every subtitle file is timed to its
+     * own release, so a constant offset against a different encode is normal.
+     * Ticks keep the 0.5s steps free of float drift. */
+    const [subtitleDelay, setSubtitleDelay] = useState(0);
 
     // Monotonic request tokens so a fast season-flip can't deliver stale episodes.
     const episodeRequestId = useRef(0);
@@ -156,7 +191,9 @@ export default function WatchScreen({
             isTv ? episode : undefined,
         )
             .then((result) => {
-                if (!cancelled) setSources(result);
+                if (cancelled) return;
+                setSources(result);
+                setResolvedCoords(isTv ? { season, episode } : null);
             })
             .catch(() => {
                 if (!cancelled) toast.error(`Could not resolve sources from ${provider}`);
@@ -168,6 +205,25 @@ export default function WatchScreen({
             cancelled = true;
         };
     }, [provider, item, mediaType, tmdbId, isTv, season, episode]);
+
+    // Subtitles are an enhancement: the player just runs caption-less on a miss,
+    // so this never raises a toast. see: docs/decisions/subtitles.md
+    useEffect(() => {
+        if (!item) return;
+        let cancelled = false;
+        setSubtitleCues([]);
+        setSubtitleDelay(0); // a new file is a new release, with its own offset
+        fetchSubtitleTrack(mediaType, tmdbId, isTv ? season : undefined, isTv ? episode : undefined)
+            .then((vtt) => {
+                if (!cancelled && vtt) setSubtitleCues(parseVtt(vtt));
+            })
+            .catch(() => {
+                // No captions is a graceful state.
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [item, mediaType, tmdbId, isTv, season, episode]);
 
     function selectProvider(next: string) {
         setProvider(next);
@@ -193,6 +249,22 @@ export default function WatchScreen({
     function selectSeason(next: number) {
         setSeason(next);
         setEpisode(1); // a new season starts at its first episode
+        // Resume in-session too: a saved S4E1 continues, anything else starts at 0.
+        setResumeTarget(resumeFor(next, 1));
+        lastPositionRef.current = 0;
+    }
+
+    function selectEpisode(next: number) {
+        setEpisode(next);
+        setResumeTarget(resumeFor(season, next));
+        lastPositionRef.current = 0;
+    }
+
+    function resumeFor(seasonNumber: number, episodeNumber: number): number | null {
+        const row = initialProgress.find(
+            (candidate) => candidate.season === seasonNumber && candidate.episode === episodeNumber,
+        );
+        return row && !isFinished(row) ? row.progressSeconds : null;
     }
 
     const selectedEpisode = isTv
@@ -208,6 +280,20 @@ export default function WatchScreen({
     const [descMaxH, setDescMaxH] = useState(0);
     const [descOverflows, setDescOverflows] = useState(false);
     const descRef = useRef<HTMLParagraphElement>(null);
+    const playerRef = useRef<HTMLElement>(null);
+    // Half the player's height. A description that fits inside that is shown whole —
+    // clamping text that does not need clamping just adds a pointless "Read more".
+    const [descCap, setDescCap] = useState<number | null>(null);
+
+    useLayoutEffect(() => {
+        const element = playerRef.current;
+        if (!element) return;
+        const measure = () => setDescCap(Math.round(element.getBoundingClientRect().height * 0.5));
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, []);
 
     function toggleDescription() {
         if (!descExpanded) {
@@ -235,7 +321,7 @@ export default function WatchScreen({
         const observer = new ResizeObserver(check);
         observer.observe(element);
         return () => observer.disconnect();
-    }, [description, descExpanded]);
+    }, [description, descExpanded, descCap]);
 
     const activeSource = pickDefaultSource(sources ?? []);
     // The backdrop is wider than the poster — it suits the ambient glow and fills
@@ -246,11 +332,13 @@ export default function WatchScreen({
         <>
             <p
                 ref={descRef}
-                onClick={toggleDescription}
-                style={descExpanded ? { maxHeight: descMaxH } : undefined}
+                onClick={descOverflows || descExpanded ? toggleDescription : undefined}
+                style={{ maxHeight: descExpanded ? descMaxH : (descCap ?? undefined) }}
                 className={cn(
-                    'max-h-19.5 cursor-pointer overflow-hidden text-base leading-relaxed text-muted-foreground transition-[max-height] duration-300 ease-out',
+                    'overflow-hidden text-base leading-relaxed text-muted-foreground transition-[max-height] duration-300 ease-out',
+                    (descOverflows || descExpanded) && 'cursor-pointer',
                     !descExpanded &&
+                        descOverflows &&
                         'mask-[linear-gradient(to_bottom,black_calc(100%-28px),transparent)]',
                 )}
             >
@@ -372,6 +460,7 @@ export default function WatchScreen({
                             to the viewport height so the black box is exactly the panel's
                             size — the video letterboxes inside, the poster covers it all. */}
                         <section
+                            ref={playerRef}
                             aria-label="Player"
                             className="relative lg:h-[calc((100dvh-230px)*var(--player-scale))]"
                         >
@@ -403,7 +492,46 @@ export default function WatchScreen({
                                                 />
                                             )}
                                         </MediaProvider>
-                                        <DefaultVideoLayout icons={defaultLayoutIcons} />
+                                        {subtitleCues.length > 0 && (
+                                            <CaptionOverlay
+                                                cues={subtitleCues}
+                                                delaySeconds={subtitleDelay / 2}
+                                            />
+                                        )}
+                                        {(!isTv ||
+                                            (resolvedCoords?.season === season &&
+                                                resolvedCoords?.episode === episode)) && (
+                                            <ProgressTracker
+                                                key={isTv ? `s${season}e${episode}` : 'movie'}
+                                                tmdbId={tmdbId}
+                                                mediaType={mediaType}
+                                                season={isTv ? season : undefined}
+                                                episode={isTv ? episode : undefined}
+                                                resumeTarget={resumeTarget}
+                                                onResumeConsumed={() => setResumeTarget(null)}
+                                                lastPositionRef={lastPositionRef}
+                                            />
+                                        )}
+                                        <DefaultVideoLayout
+                                            icons={defaultLayoutIcons}
+                                            // The stepper goes through the slots PROP. A
+                                            // slot-attribute child is not collected and
+                                            // renders inline in the player flow, which
+                                            // squishes the video.
+                                            // see: docs/local/streaming-providers.md#subtitles
+                                            slots={
+                                                subtitleCues.length > 0
+                                                    ? {
+                                                          settingsMenuItemsEnd: (
+                                                              <SubtitleDelayMenu
+                                                                  delay={subtitleDelay}
+                                                                  onChange={setSubtitleDelay}
+                                                              />
+                                                          ),
+                                                      }
+                                                    : undefined
+                                            }
+                                        />
                                     </MediaPlayer>
                                 ) : (
                                     <div className="flex size-full flex-col items-center justify-center gap-3 text-muted-foreground">

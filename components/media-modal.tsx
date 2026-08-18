@@ -142,7 +142,7 @@ export default function MediaModal({
                     <div className="flex flex-col gap-4 p-5 sm:p-6">
                         <div className="pr-24">
                             {metaParts.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
                                     {metaParts.map((part, index) => (
                                         <Fragment key={index}>
                                             {index > 0 && <span aria-hidden>·</span>}
@@ -190,7 +190,7 @@ export default function MediaModal({
                             {item.genres.map((genre) => (
                                 <span
                                     key={genre}
-                                    className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground"
+                                    className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-foreground/75"
                                 >
                                     {genre}
                                 </span>
@@ -198,7 +198,7 @@ export default function MediaModal({
                         </div>
 
                         {item.overview != null && (
-                            <p className="text-sm leading-relaxed text-muted-foreground">
+                            <p className="text-base leading-relaxed text-foreground/85">
                                 {item.overview}
                             </p>
                         )}

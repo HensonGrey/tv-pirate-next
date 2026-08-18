@@ -117,10 +117,10 @@ export default function TopNav({
                             aria-current={tab === id ? 'page' : undefined}
                             onClick={() => onTabChange(id)}
                             className={cn(
-                                'relative flex h-14 items-center gap-2 px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-gold/60',
+                                'relative flex h-14 items-center gap-2 px-3 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-gold/60',
                                 tab === id
-                                    ? 'text-gold'
-                                    : 'text-muted-foreground hover:text-foreground',
+                                    ? 'font-semibold text-gold'
+                                    : 'font-medium text-foreground/70 hover:text-foreground',
                             )}
                         >
                             <Icon aria-hidden className="size-4" />
@@ -192,8 +192,8 @@ export default function TopNav({
                             // to natural width.
                             'flex h-9 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-gold/60 sm:flex-none sm:justify-start',
                             tab === id
-                                ? 'bg-gold/15 text-gold'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                ? 'bg-gold/15 font-semibold text-gold'
+                                : 'text-foreground/70 hover:bg-muted hover:text-foreground',
                         )}
                     >
                         <Icon aria-hidden className="size-4" />

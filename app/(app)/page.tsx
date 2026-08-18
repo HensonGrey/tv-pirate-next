@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import BrowseScreen from '@/components/browse/browse-screen';
 import { signOutAction } from '@/lib/auth/actions';
 import { list as listFavourites } from '@/lib/favourites/service';
+import { list as listProgress } from '@/lib/progress/service';
 import { genres as fetchGenres, trending } from '@/lib/tmdb/service';
 
 /** The browse home. Genres, favourites and the first trending page are fetched
@@ -11,10 +12,11 @@ export default async function HomePage() {
     const session = await auth();
     const user = session!.user;
 
-    const [initialPage, genreList, favourites] = await Promise.all([
+    const [initialPage, genreList, favourites, progress] = await Promise.all([
         trending('day', 1),
         fetchGenres(),
         listFavourites(user.id),
+        listProgress(user.id),
     ]);
 
     return (
@@ -28,6 +30,7 @@ export default async function HomePage() {
             initialPage={initialPage}
             genreList={genreList}
             initialFavourites={favourites}
+            initialProgress={progress}
             onSignOut={signOutAction}
         />
     );

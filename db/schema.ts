@@ -85,3 +85,30 @@ export const favourites = pgTable(
     },
     (table) => [unique('uq_favourites_user_title').on(table.userId, table.tmdbId, table.mediaType)],
 );
+
+/** Per-user playback position. media_type is required because the two TMDB id
+ * namespaces collide; movie rows carry NULL season/episode.
+ * see: docs/decisions/watch-progress.md#schema */
+export const watchProgress = pgTable('watch_progress', {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+    userId: text('user_id')
+        .notNull()
+        .references(() => users.id, { onDelete: 'cascade' }),
+    tmdbId: bigint('tmdb_id', { mode: 'number' }).notNull(),
+    mediaType: text('media_type').notNull(),
+    seasonNumber: integer('season_number'),
+    episodeNumber: integer('episode_number'),
+    progressSeconds: integer('progress_seconds').notNull(),
+    durationSeconds: integer('duration_seconds'),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+});
+
+/** Downloaded subtitle files, keyed by the OpenSubtitles file id. The previous
+ * stack cached these on disk; serverless filesystems are ephemeral, and
+ * re-downloading would spend a daily quota that is only 5-10 files.
+ * see: docs/decisions/subtitles.md */
+export const subtitleCache = pgTable('subtitle_cache', {
+    fileId: bigint('file_id', { mode: 'number' }).primaryKey(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+});

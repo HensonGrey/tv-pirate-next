@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import WatchScreen from '@/components/watch/watch-screen';
 import { signOutAction } from '@/lib/auth/actions';
 import { list as listFavourites } from '@/lib/favourites/service';
+import { list as listProgress } from '@/lib/progress/service';
 import { detail, seasonEpisodes } from '@/lib/tmdb/service';
 import type { MediaItem, MediaType, SeasonInfo } from '@/lib/tmdb/types';
 
@@ -25,7 +26,14 @@ export async function renderWatchPage(mediaType: MediaType, slug: string) {
             initialSeason = await seasonEpisodes(tmdbId, 1).catch(() => null);
         }
     }
-    const favourites = await listFavourites(user.id);
+    const [favourites, progress] = await Promise.all([
+        listFavourites(user.id),
+        listProgress(user.id),
+    ]);
+    // Only this title's rows travel to the client; they arrive newest first.
+    const titleProgress = progress.filter(
+        (row) => row.tmdbId === tmdbId && row.mediaType === mediaType,
+    );
 
     return (
         <WatchScreen
@@ -33,6 +41,7 @@ export async function renderWatchPage(mediaType: MediaType, slug: string) {
             tmdbId={tmdbId}
             item={item}
             initialSeason={initialSeason}
+            initialProgress={titleProgress}
             isFavourite={favourites.some(
                 (row) => row.tmdbId === tmdbId && row.mediaType === mediaType,
             )}

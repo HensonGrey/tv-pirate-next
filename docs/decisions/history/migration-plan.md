@@ -351,6 +351,30 @@ This is binding for every batch below.
 
 ---
 
+## Scope correction (2026-08-18): rate limiting and error hygiene are not migration work
+
+The user pointed out that neither existed in the Spring app, which matches the plan's own
+opening correction: **there is no Bucket4j**, and the "global exception handler" was a line in
+`tv pirate todo.txt`, not code. Both are new features that happened to be scheduled inside the
+migration. They move out.
+
+What already landed as part of parity, because the old app genuinely had it:
+
+- `protectedRoute()` / `ApiError` map thrown failures to status codes and never leak upstream
+  detail — the equivalent of Spring's `ResponseStatusException` usage.
+- TMDB failures map to 404 "Title not found on TMDB" and 502 otherwise, verified against the old
+  backend in `scripts/tmdb-parity.mjs`.
+
+Deferred until after the migration, as new work: per-IP rate limiting (with the guest endpoint
+strictest, and the stream proxy exempt — a 2 h movie is thousands of segment requests), the
+external-cron guest sweep, dynamic page titles, a real not-found page, and production error
+logging. All of these are todo-list items, and the guest DoS exposure they address is unchanged
+from the Spring app rather than newly introduced.
+
+Remaining migration gates: subtitles, then the verification sweep.
+
+---
+
 ## Batch resequencing (2026-08-18)
 
 The user's rule: **never hand over a batch with no UI to click.** Batch 2 (TMDB routes) was an

@@ -13,6 +13,7 @@ import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import {
     addFavourite,
+    clearProgress,
     fetchDiscover,
     fetchTitleDetail,
     fetchTrending,
@@ -20,6 +21,8 @@ import {
     searchTitles,
 } from '@/lib/api/browser';
 import type { FavouriteRow } from '@/lib/favourites/service';
+import type { ProgressRow } from '@/lib/progress/service';
+import { isFinished, newestPerTitle, progressPercent } from '@/lib/progress/shared';
 import type { GenreInfo, MediaItem, MediaType, PageResponse } from '@/lib/tmdb/types';
 import type { SessionUser } from '@/lib/session-user';
 import { cn } from '@/lib/utils';
@@ -31,6 +34,8 @@ interface BrowseScreenProps {
     initialPage: PageResponse<MediaItem>;
     genreList: GenreInfo[];
     initialFavourites: FavouriteRow[];
+    /** Saved positions, newest first — feeds the modal bar and Continue watching. */
+    initialProgress: ProgressRow[];
     onSignOut: () => void;
 }
 
@@ -197,6 +202,7 @@ export default function BrowseScreen({
     initialPage,
     genreList,
     initialFavourites,
+    initialProgress,
     onSignOut,
 }: BrowseScreenProps) {
     const router = useRouter();
@@ -239,6 +245,8 @@ export default function BrowseScreen({
         serverRendered,
     } = state;
 
+    const [progress, setProgress] = useState<ProgressRow[]>(initialProgress);
+
     // Library cards come from their own detail lookups, keyed mediaType:tmdbId.
     const [libraryItems, setLibraryItems] = useState<Map<string, MediaItem>>(new Map());
     const [libraryLoading, setLibraryLoading] = useState(false);
@@ -272,7 +280,11 @@ export default function BrowseScreen({
     // caches those 24 h). A failed lookup just skips its card.
     useEffect(() => {
         if (tab !== 'library') return;
-        const missing = [...favourites].filter((key) => !libraryItems.has(key));
+        const wanted = new Set([
+            ...favourites,
+            ...progress.map((row) => `${row.mediaType}:${row.tmdbId}`),
+        ]);
+        const missing = [...wanted].filter((key) => !libraryItems.has(key));
         if (missing.length === 0) return;
         let cancelled = false;
         setLibraryLoading(true);
@@ -299,7 +311,7 @@ export default function BrowseScreen({
         return () => {
             cancelled = true;
         };
-    }, [tab, favourites, libraryItems]);
+    }, [tab, favourites, progress, libraryItems]);
 
     // The main fetch. Skipped on first render because the server already
     // supplied that page; re-runs on any tab/filter/page change after that.
@@ -378,6 +390,23 @@ export default function BrowseScreen({
             : toast.success(`Added “${item.title ?? 'Untitled'}” to your list`);
     }
 
+    /** Title-level on purpose: clearing only the shown episode would make the
+     * next visit resume a different one, which is not "start over".
+     * see: docs/decisions/watch-progress.md#start-over */
+    function startOver(target: MediaItem) {
+        if (!target.mediaType) return;
+        const mediaType = target.mediaType;
+        const previous = progress;
+        setProgress((rows) =>
+            rows.filter((row) => !(row.tmdbId === target.id && row.mediaType === mediaType)),
+        );
+        clearProgress(mediaType, target.id).catch(() => {
+            setProgress(previous);
+            toast.error('Could not clear progress');
+        });
+        router.push(`/${mediaType}/${target.id}-${slugify(target.title)}`);
+    }
+
     // Client-side narrowing of whatever page we hold: trending and search
     // return mixed pages, so the toggle can still slice them.
     const visibleItems =
@@ -408,6 +437,33 @@ export default function BrowseScreen({
     const favouriteCards = [...favourites]
         .map((key) => libraryItems.get(key))
         .filter((item): item is MediaItem => item != null);
+
+    const progressByTitle = newestPerTitle(progress);
+    const continueCards = [...progressByTitle.values()]
+        // A finished row is not "continue watching" — it would resume at the credits.
+        .filter((row) => !isFinished(row))
+        .map((row) => {
+            const item = libraryItems.get(`${row.mediaType}:${row.tmdbId}`);
+            return item
+                ? {
+                      item,
+                      progressPct: progressPercent(row),
+                      badge:
+                          row.season != null && row.episode != null
+                              ? `S${row.season}E${row.episode}`
+                              : null,
+                  }
+                : null;
+        })
+        .filter((card): card is NonNullable<typeof card> => card != null);
+
+    // The modal's bar: the winning row for the selected title.
+    const selectedRow =
+        selected?.mediaType != null
+            ? progressByTitle.get(`${selected.mediaType}:${selected.id}`)
+            : undefined;
+    const selectedPct =
+        selectedRow && !isFinished(selectedRow) ? progressPercent(selectedRow) : null;
 
     return (
         <div className="min-h-dvh">
@@ -523,7 +579,7 @@ export default function BrowseScreen({
                             loading={libraryLoading && favouriteCards.length === 0}
                             error={false}
                             onRetry={() => dispatch({ type: 'retry' })}
-                            continueCards={[]}
+                            continueCards={continueCards}
                             favouriteCards={favouriteCards}
                             onSelect={(picked) => dispatch({ type: 'select', item: picked })}
                             onBrowse={() => dispatch({ type: 'tab', tab: 'trending' })}
@@ -633,7 +689,12 @@ export default function BrowseScreen({
 
             {selected && (
                 <MediaModal
-                    item={selectedDetail ?? selected}
+                    item={{
+                        ...(selectedDetail ?? selected),
+                        progress: selectedPct ?? undefined,
+                        progressSeason: selectedRow?.season ?? undefined,
+                        progressEpisode: selectedRow?.episode ?? undefined,
+                    }}
                     isFavourite={
                         selected.mediaType != null &&
                         favourites.has(favouriteKey(selected.mediaType, selected.id))
@@ -646,9 +707,7 @@ export default function BrowseScreen({
                         // coordinates stay in the watch page's own state.
                         router.push(`/${target.mediaType}/${target.id}-${slugify(target.title)}`);
                     }}
-                    onStartOver={() => {
-                        // Watch progress lands in a later batch; nothing to clear yet.
-                    }}
+                    onStartOver={() => startOver(selectedDetail ?? selected)}
                     onClose={() => dispatch({ type: 'select', item: null })}
                 />
             )}
