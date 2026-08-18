@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { ApiError } from '@/lib/api/errors';
 import type { ResolveRequest, StreamProvider, StreamSource } from './provider';
+import { videasy } from './providers/videasy';
 import { vixsrc } from './providers/vixsrc';
 
 /**
@@ -9,7 +10,7 @@ import { vixsrc } from './providers/vixsrc';
  * the order the picker shows.
  * see: docs/local/streaming-providers.md#architecture
  */
-const PROVIDERS: StreamProvider[] = [vixsrc];
+const PROVIDERS: StreamProvider[] = [videasy, vixsrc];
 
 export function providerNames(): string[] {
     return PROVIDERS.map((provider) => provider.name).sort();
