@@ -60,3 +60,32 @@ export async function removeFavourite(tmdbId: number, mediaType: MediaType) {
     const response = await fetch(`/api/favourites/${mediaType}/${tmdbId}`, { method: 'DELETE' });
     if (!response.ok) throw new Error(`remove favourite answered ${response.status}`);
 }
+
+/** One playable source: the quality label, the format the player must expect,
+ * and the proxied playback URL. */
+export interface StreamSourceDto {
+    quality: string;
+    format: 'mp4' | 'hls';
+    proxyUrl: string;
+}
+
+export function fetchStreamProviders() {
+    return get<string[]>('/api/stream/providers');
+}
+
+/** Resolve exactly the named provider. Season/episode are omitted for movies. */
+export function fetchSources(
+    provider: string,
+    type: MediaType,
+    tmdbId: number,
+    season?: number,
+    episode?: number,
+) {
+    return get<StreamSourceDto[]>('/api/stream/sources', {
+        provider,
+        type,
+        tmdbId,
+        season,
+        episode,
+    });
+}

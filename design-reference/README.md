@@ -48,6 +48,8 @@ Requested by the user on 2026-08-18, during Batch 1. These are **intended** diff
 | Login card edge | `ring-foreground/25` (hard outline in light mode) | `ring-border` + `shadow-xl` |
 | Confirm dialog width | `sm:max-w-sm` (384px — narrower than the 448px card, so it looked inset) | `sm:max-w-lg` (512px), overlapping the card |
 
+| Watch page player size | surface filled `100dvh - 230px` | scaled to 80% via `--player-scale`, because full height read as oversized |
+
 Current-state captures: `batch1-login-light-revised.png`, `batch1-modal-light-revised.png`,
 `batch1-signed-in-light.png`. Everything not listed here is still held to the originals.
 
