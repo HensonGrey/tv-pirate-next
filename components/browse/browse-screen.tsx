@@ -407,6 +407,23 @@ export default function BrowseScreen({
         router.push(`/${mediaType}/${target.id}-${slugify(target.title)}`);
     }
 
+    /** Clears the saved rows and closes, so the card leaves Continue watching
+     * without the player opening. */
+    function removeFromContinueWatching(target: MediaItem) {
+        if (!target.mediaType) return;
+        const mediaType = target.mediaType;
+        const previous = progress;
+        setProgress((rows) =>
+            rows.filter((row) => !(row.tmdbId === target.id && row.mediaType === mediaType)),
+        );
+        dispatch({ type: 'select', item: null });
+        clearProgress(mediaType, target.id).catch(() => {
+            setProgress(previous);
+            toast.error('Could not remove it from Continue watching');
+        });
+        toast(`Removed “${target.title ?? 'Untitled'}” from Continue watching`);
+    }
+
     // Client-side narrowing of whatever page we hold: trending and search
     // return mixed pages, so the toggle can still slice them.
     const visibleItems =
@@ -708,6 +725,7 @@ export default function BrowseScreen({
                         router.push(`/${target.mediaType}/${target.id}-${slugify(target.title)}`);
                     }}
                     onStartOver={() => startOver(selectedDetail ?? selected)}
+                    onRemoveProgress={() => removeFromContinueWatching(selectedDetail ?? selected)}
                     onClose={() => dispatch({ type: 'select', item: null })}
                 />
             )}

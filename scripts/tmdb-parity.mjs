@@ -99,6 +99,24 @@ for (const path of CASES) {
     }
     const o = summarise(oldBody);
     const n = summarise(newBody);
+    // Catalogue totals drift as TMDB adds titles, and the two stacks cached at
+    // different moments — compare them proportionally, not exactly.
+    const totalsDrift = (a, b) =>
+        typeof a === 'number' && typeof b === 'number' && a > 0
+            ? Math.abs(a - b) / a < 0.001
+            : a === b;
+    if (o.kind === 'page' && n.kind === 'page') {
+        for (const field of ['totalResults', 'totalPages']) {
+            if (totalsDrift(o[field], n[field])) {
+                if (o[field] !== n[field]) {
+                    console.log(
+                        `    note ${path}: ${field} ${o[field]} -> ${n[field]} (upstream drift)`,
+                    );
+                }
+                n[field] = o[field];
+            }
+        }
+    }
     // Compare everything except the id ordering of equal-popularity results.
     problems.push(
         ...diff(

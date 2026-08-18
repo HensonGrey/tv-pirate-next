@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, type ReactNode } from 'react';
-import { Clock, Heart, Layers, Play, RotateCcw, Star, X } from 'lucide-react';
+import { Clock, Heart, Layers, ListX, Play, RotateCcw, Star, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MediaPoster from '@/components/media-poster';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,8 @@ interface MediaModalProps {
     onWatch: () => void;
     /** Clears the saved row and starts from zero (only shown with progress). */
     onStartOver: () => void;
+    /** Drops the title out of Continue watching without opening the player. */
+    onRemoveProgress?: () => void;
     onClose: () => void;
 }
 
@@ -34,6 +36,7 @@ export default function MediaModal({
     onToggleFavourite,
     onWatch,
     onStartOver,
+    onRemoveProgress,
     onClose,
 }: MediaModalProps) {
     const closeRef = useRef<HTMLButtonElement>(null);
@@ -103,11 +106,11 @@ export default function MediaModal({
                         aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
                         aria-pressed={isFavourite}
                         onClick={onToggleFavourite}
-                        className="flex size-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-colors outline-none hover:bg-black/65 focus-visible:ring-2 focus-visible:ring-white/70"
+                        className="flex size-11 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-colors outline-none hover:bg-black/65 focus-visible:ring-2 focus-visible:ring-white/70"
                     >
                         <Heart
                             className={cn(
-                                'size-5 transition-transform active:scale-90',
+                                'size-6 transition-transform active:scale-90',
                                 isFavourite && 'fill-gold text-gold',
                             )}
                         />
@@ -117,9 +120,9 @@ export default function MediaModal({
                         type="button"
                         aria-label="Close details"
                         onClick={onClose}
-                        className="flex size-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-colors outline-none hover:bg-black/65 focus-visible:ring-2 focus-visible:ring-white/70"
+                        className="flex size-11 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-colors outline-none hover:bg-black/65 focus-visible:ring-2 focus-visible:ring-white/70"
                     >
-                        <X className="size-5" />
+                        <X className="size-6" />
                     </button>
                 </div>
 
@@ -140,7 +143,7 @@ export default function MediaModal({
                     </div>
 
                     <div className="flex flex-col gap-4 p-5 sm:p-6">
-                        <div className="pr-24">
+                        <div className="pr-28">
                             {metaParts.length > 0 && (
                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
                                     {metaParts.map((part, index) => (
@@ -203,19 +206,35 @@ export default function MediaModal({
                             </p>
                         )}
 
-                        <div className="mt-auto flex items-center gap-2 pt-2">
+                        <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
                             <Button
                                 size="lg"
                                 onClick={onWatch}
-                                className="bg-gold font-semibold text-gold-foreground hover:bg-gold/85"
+                                className="h-11 bg-gold font-semibold text-gold-foreground hover:bg-gold/85 sm:h-9"
                             >
                                 <Play />
                                 {watchLabel}
                             </Button>
                             {progress != null && !isFinished && (
-                                <Button variant="outline" size="lg" onClick={onStartOver}>
+                                <Button
+                                    variant="outline"
+                                    size="lg"
+                                    onClick={onStartOver}
+                                    className="h-11 sm:h-9"
+                                >
                                     <RotateCcw />
                                     Start over
+                                </Button>
+                            )}
+                            {progress != null && onRemoveProgress && (
+                                <Button
+                                    variant="outline"
+                                    size="lg"
+                                    onClick={onRemoveProgress}
+                                    className="h-11 sm:h-9"
+                                >
+                                    <ListX />
+                                    Remove from Continue watching
                                 </Button>
                             )}
                         </div>
