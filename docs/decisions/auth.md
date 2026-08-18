@@ -44,6 +44,17 @@ No username/password accounts at all: a user is a guest (one-click, no credentia
 
 `JwtUserDetailsService.loadUserByUsername` receives the user **id** (the JWT subject), despite the method's historical name. Loading from the DB every request (instead of trusting the JWT alone) means a deleted account loses access immediately.
 
+## session-payload — the session callback must not echo the adapter row
+
+With database sessions, Auth.js hands the `session` callback the raw adapter row —
+`{ sessionToken, userId, expires, user }` — and **whatever the callback returns becomes the
+`/api/auth/session` response body verbatim**. Returning it (or spreading it) publishes
+`sessionToken`, which _is_ the credential: an httpOnly cookie stops JS reading the cookie, but a
+fetch to that endpoint would hand the token straight back. Auth.js's default callback narrows to
+`{ user: { name, email, image }, expires }` for exactly this reason, so any override has to
+re-narrow by hand. Ours builds a fresh object and adds only `id` and `provider`. Caught in Batch 1
+by diffing the endpoint's output against the cookie value.
+
 ## Related
 
 - `overview.md` — Key Decisions summary of all of the above

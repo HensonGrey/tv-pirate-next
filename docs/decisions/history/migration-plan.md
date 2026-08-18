@@ -361,7 +361,7 @@ Each batch is independently reviewable and manually testable. **The old stack ke
 Already done ahead of time: `design-reference/` captured from the live stack (13 states + measured constraints).
 New repo at project root (not nested — per your working preference). Latest stable Next.js App Router + TypeScript, Tailwind v4, shadcn/ui, Prettier (4-space, semicolons, single quotes, printWidth 100) + oxlint wired into `npm run lint` exactly as today. Drizzle + drizzle-kit + `db/migrate.ts` runner. Env plumbing (`.env.example`). Vault → `docs/` per above; `CLAUDE.md`. *Verify:* dev server renders, `npm run lint` clean, migration 0001 up → down → up on the fresh DB.
 
-**Batch 1 — Auth** *(3 endpoints + session)*
+**Batch 1 — Auth** *(3 endpoints + session)* — **DONE 2026-08-18, awaiting review**
 Auth.js v5 + Drizzle adapter, database sessions. Migration 0001: `users` (canonical + `provider`, `last_activity_at`), `accounts`, `sessions`, `verification_token`, the trigger function, and the `sessions` trigger. Guest route, `signOut`, protected `(app)` layout, login page. *Verify:* guest login creates user + session rows; reload stays logged in; logout clears both; `/` while logged out redirects to `/login`; a deleted user loses access immediately.
 
 **Batch 2 — TMDB proxy** *(6 endpoints)*

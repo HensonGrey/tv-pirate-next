@@ -36,6 +36,21 @@ visually identical to these captures.
 - `frontend/src/components/ui/*` — shadcn components (base-ui variants). Move unchanged.
 - Fonts come from `@fontsource-variable/outfit` + `@fontsource-variable/manrope` (self-hosted, no Google Fonts request) — keep these rather than switching to `next/font`, so rendering is byte-identical.
 
+
+## Deliberate departures from these captures
+
+Requested by the user on 2026-08-18, during Batch 1. These are **intended** differences — do not
+"fix" them back to match the screenshots above.
+
+| Change | Before | After |
+|---|---|---|
+| Light-mode page background | `--background: oklch(1 0 0)` (pure white, read as blinding) | `oklch(0.975 0 0)`, so the white card lifts off the page |
+| Login card edge | `ring-foreground/25` (hard outline in light mode) | `ring-border` + `shadow-xl` |
+| Confirm dialog width | `sm:max-w-sm` (384px — narrower than the 448px card, so it looked inset) | `sm:max-w-lg` (512px), overlapping the card |
+
+Current-state captures: `batch1-login-light-revised.png`, `batch1-modal-light-revised.png`,
+`batch1-signed-in-light.png`. Everything not listed here is still held to the originals.
+
 ## Not yet captured (capture when the feature is rebuilt)
 
 - Library tab **populated** (continue-watching cards with progress bars + favourites) — needs watch history.

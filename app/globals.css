@@ -52,7 +52,8 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
+    /* Not pure white: a soft page lets the white card lift off it. */
+    --background: oklch(0.975 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
