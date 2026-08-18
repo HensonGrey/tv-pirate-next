@@ -11,7 +11,8 @@
         "db:generate": "drizzle-kit generate",
         "db:up": "node --env-file=.env.local db/migrate.mjs up",
         "db:down": "node --env-file=.env.local db/migrate.mjs down",
-        "db:status": "node --env-file=.env.local db/migrate.mjs status"
+        "db:status": "node --env-file=.env.local db/migrate.mjs status",
+        "parity": "node scripts/tmdb-parity.mjs"
     },
     "dependencies": {
         "@auth/drizzle-adapter": "^1.11.3",
@@ -31,7 +32,8 @@
         "shadcn": "^4.18.0",
         "sonner": "^2.0.8",
         "tailwind-merge": "^3.6.0",
-        "tw-animate-css": "^1.4.0"
+        "tw-animate-css": "^1.4.0",
+        "zod": "^4.4.3"
     },
     "devDependencies": {
         "@tailwindcss/postcss": "^4",

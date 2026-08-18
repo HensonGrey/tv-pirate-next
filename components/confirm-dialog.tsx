@@ -45,25 +45,31 @@ export default function ConfirmDialog({
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             {/* Wider than the max-w-md cards it covers, so it reads as on top of them. */}
-            <AlertDialogContent className="data-[size=default]:max-w-sm data-[size=default]:sm:max-w-lg">
+            <AlertDialogContent className="data-[size=default]:max-w-sm data-[size=default]:sm:max-w-xl sm:p-7">
                 <AlertDialogHeader>
-                    <AlertDialogTitle>{title}</AlertDialogTitle>
+                    <AlertDialogTitle className="text-xl">{title}</AlertDialogTitle>
                     {/* Description renders a <p> by default — callers pass block content
               (divs/paragraphs), which is invalid HTML inside a p. Rendering a
               div keeps the slot and styles but accepts any ReactNode. */}
                     {description && (
-                        <AlertDialogDescription render={<div />}>
+                        <AlertDialogDescription render={<div />} className="text-[1.05rem]">
                             {description}
                         </AlertDialogDescription>
                     )}
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel disabled={loading}>{cancelLabel}</AlertDialogCancel>
+                    {/* Big enough to tap on a phone, back to the theme size from sm up. */}
+                    <AlertDialogCancel
+                        disabled={loading}
+                        className="h-11 flex-1 text-base sm:h-10 sm:flex-none sm:px-4 sm:text-sm"
+                    >
+                        {cancelLabel}
+                    </AlertDialogCancel>
                     <AlertDialogAction
                         variant={variant === 'destructive' ? 'destructive' : 'default'}
                         disabled={loading}
                         onClick={onConfirm}
-                        className="relative overflow-hidden"
+                        className="relative h-11 flex-1 overflow-hidden text-base sm:h-10 sm:flex-none sm:px-4 sm:text-sm"
                     >
                         {loading && (
                             <span

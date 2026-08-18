@@ -38,7 +38,8 @@ Migrated from a Spring Boot + React two-process stack in August 2026.
   failure. Not for destructive actions, which wait for the server.
 - **The design is fixed.** [design-reference/](design-reference/) holds screenshots of the previous
   implementation; the UI is a pixel-parity port of those. A visual difference is a bug.
-- **Git**: do not commit unless asked.
+- **Git**: never commit or push until the user explicitly says go for that change. Finished work
+  stays in the working tree so it can be reviewed locally rather than on GitHub.
 
 ## Layout
 

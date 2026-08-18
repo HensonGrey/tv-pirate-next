@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, integer, pgTable, primaryKey, text, timestamp, unique } from 'drizzle-orm/pg-core';
 
 // Auth.js canonical tables, snake_case in the database and camelCase in Drizzle
 // (the adapter binds to the Drizzle field names, so column naming stays ours).
@@ -66,3 +66,22 @@ export const usersRelations = relations(users, ({ many }) => ({
     accounts: many(accounts),
     sessions: many(sessions),
 }));
+
+/** Server-backed favourites. media_type is part of the identity: TMDB runs two
+ * id spaces, so movie 123 and tv 123 are different titles.
+ * see: docs/decisions/favourites.md#schema */
+export const favourites = pgTable(
+    'favourites',
+    {
+        id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+        userId: text('user_id')
+            .notNull()
+            .references(() => users.id, { onDelete: 'cascade' }),
+        tmdbId: bigint('tmdb_id', { mode: 'number' }).notNull(),
+        mediaType: text('media_type').notNull(),
+        createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+            .notNull()
+            .defaultNow(),
+    },
+    (table) => [unique('uq_favourites_user_title').on(table.userId, table.tmdbId, table.mediaType)],
+);

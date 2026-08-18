@@ -351,6 +351,27 @@ This is binding for every batch below.
 
 ---
 
+## Batch resequencing (2026-08-18)
+
+The user's rule: **never hand over a batch with no UI to click.** Batch 2 (TMDB routes) was an
+API-only gate and should not have been one — it is reviewed together with Batch 3. The remaining
+batches are regrouped so every gate ends in something testable in the browser:
+
+| Gate | Contents | Visible result |
+|---|---|---|
+| 3 | Browse UI + favourites (migration 0002) | the home screen: tabs, search, pagination, modal, working hearts |
+| 4 | Stream proxy + registry + first provider + watch page | video actually plays |
+| 5 | Remaining providers (vixsrc, videasy cipher) | provider chips switch sources |
+| 6 | Watch progress (migration 0003) | resume, progress bars, Continue watching in the library |
+| 7 | Subtitles | captions on screen + the delay stepper |
+| 8 | Rate limiting, cron, error hygiene, page titles | mostly invisible — I verify it; the visible parts are 429 toasts and dynamic titles |
+| 9 | Verification sweep, smoke tests | green runs |
+
+Watch progress moved *after* the player because progress rows can only be created by playback —
+"Continue watching" cannot be tested before video plays.
+
+---
+
 ## Batching order
 
 **Every batch ends in a full stop for your review and manual testing - the next one does not start until you say so.**
@@ -364,10 +385,10 @@ New repo at project root (not nested — per your working preference). Latest st
 **Batch 1 — Auth** *(3 endpoints + session)* — **DONE 2026-08-18, awaiting review**
 Auth.js v5 + Drizzle adapter, database sessions. Migration 0001: `users` (canonical + `provider`, `last_activity_at`), `accounts`, `sessions`, `verification_token`, the trigger function, and the `sessions` trigger. Guest route, `signOut`, protected `(app)` layout, login page. *Verify:* guest login creates user + session rows; reload stays logged in; logout clears both; `/` while logged out redirects to `/login`; a deleted user loses access immediately.
 
-**Batch 2 — TMDB proxy** *(6 endpoints)*
+**Batch 2 — TMDB proxy** *(6 endpoints)* — **DONE 2026-08-18, awaiting review**
 `lib/tmdb/` + Zod schemas + revalidate TTLs + shared error mapping + the six route handlers. *Verify:* curl all six against both stacks and diff — trending order, discover genre filtering, search interleave, detail runtime/seasons, season episode list, merged genre list. Bad inputs return the same 400s.
 
-**Batch 3 — Browse UI**
+**Batch 3 — Browse UI + favourites** — **DONE 2026-08-18, awaiting review**
 Home page as RSC shell + client islands: top nav (search via URL params), media card/poster, modal, pagination, genre chips, featured banner, type filter, skeletons and empty/error states. The browse reducer ports as-is, including the re-click-active-tab no-op guard. *Verify:* side-by-side against :5173 — tabs, debounced search, pagination, filters, modal.
 
 **Batch 4 — Favourites + Progress** *(6 endpoints, 2 tables)*
