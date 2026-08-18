@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# private notes — referenced by code comments, deliberately not published (see CLAUDE.md)
+/docs/local/
+
+# env: .env* is ignored above; the committed template is the exception
+!.env.example

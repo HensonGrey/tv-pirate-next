@@ -1,0 +1,7 @@
+.next
+node_modules
+package-lock.json
+design-reference
+
+# imported verbatim from the approved plan — kept faithful, not reformatted
+docs/decisions/history/migration-plan.md
