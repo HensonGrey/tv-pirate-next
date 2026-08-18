@@ -13,7 +13,7 @@ const REASON: Record<number, string> = {
     503: 'Service Unavailable',
 };
 
-function toResponse(error: unknown): NextResponse {
+function toResponse(error: unknown): Response {
     if (error instanceof ApiError) {
         return NextResponse.json(
             {
@@ -46,9 +46,7 @@ export function cachedJson(data: unknown, maxAge: number, staleWhileRevalidate =
 
 /** Wraps a public route so thrown ApiErrors become responses and anything else
  * becomes a 500 without leaking a stack. Replaces the Spring exception handler. */
-export function route<T extends unknown[]>(
-    handler: (...args: T) => Promise<NextResponse> | NextResponse,
-) {
+export function route<T extends unknown[]>(handler: (...args: T) => Promise<Response> | Response) {
     return async (...args: T) => {
         try {
             return await handler(...args);
@@ -65,7 +63,7 @@ export function route<T extends unknown[]>(
  * see: docs/decisions/auth.md
  */
 export function protectedRoute<T extends unknown[]>(
-    handler: (session: Session, ...args: T) => Promise<NextResponse> | NextResponse,
+    handler: (session: Session, ...args: T) => Promise<Response> | Response,
 ) {
     return async (...args: T) => {
         try {
