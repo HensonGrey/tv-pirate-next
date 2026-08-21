@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import WatchScreen from '@/components/watch/watch-screen';
 import { signOutAction } from '@/lib/auth/actions';
+import { UnauthenticatedError } from '@/lib/auth/errors';
 import { list as listFavourites } from '@/lib/favourites/service';
 import { list as listProgress } from '@/lib/progress/service';
 import { detail, seasonEpisodes } from '@/lib/tmdb/service';
@@ -15,7 +16,11 @@ function tmdbIdFrom(slug: string): number {
  * and the heart state all resolve on the server so the page renders complete. */
 export async function renderWatchPage(mediaType: MediaType, slug: string) {
     const session = await auth();
-    const user = session!.user;
+    // The (app) layout already gates on this, but its auth() call is
+    // independent of this one — a backend blip between the two must not crash
+    // on a stale assumption that session exists.
+    if (!session?.user) throw new UnauthenticatedError();
+    const user = session.user;
     const tmdbId = tmdbIdFrom(slug);
 
     let item: MediaItem | null = null;
