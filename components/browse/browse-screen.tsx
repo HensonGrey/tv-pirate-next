@@ -248,7 +248,9 @@ export default function BrowseScreen({
     const [progress, setProgress] = useState<ProgressRow[]>(initialProgress);
 
     // Library cards come from their own detail lookups, keyed mediaType:tmdbId.
-    const [libraryItems, setLibraryItems] = useState<Map<string, MediaItem>>(new Map());
+    // A failed lookup is stored as null rather than left missing — otherwise it
+    // never leaves `missing` below and the effect refetches it every render.
+    const [libraryItems, setLibraryItems] = useState<Map<string, MediaItem | null>>(new Map());
     const [libraryLoading, setLibraryLoading] = useState(false);
 
     // Rapid like/unlike clicking: dismiss the previous toast so the stack
@@ -301,7 +303,7 @@ export default function BrowseScreen({
                 if (cancelled) return;
                 setLibraryItems((current) => {
                     const next = new Map(current);
-                    for (const [key, item] of entries) if (item) next.set(key, item);
+                    for (const [key, item] of entries) next.set(key, item);
                     return next;
                 });
             })
